@@ -7,21 +7,106 @@ import sys
 import matplotlib.pyplot as plt
 import copy
 
+class hillClimbAgent:
+
+	def __init__(self, envName):
+		self.env = gym.make(envName)
+		self.legalActions = [0,1]
+		self.env.observation_sgipace.n = len(self.env.observation_space.low)
+
+		self.weights = np.random.rand(self.env.observation_space.n + 1) * 2 - 1
+
+		self.episodes = []
+		self.rewards = []
+		self.epsilons = []
+		self.learnedWeights = []
+
+		print ("Init complete, weights initialized to\n", self.weights)
+
+	def chooseAction(self, state):
+		value = np.dot(np.append(state, 1), self.weights)
+		if value < 0:
+			action = 0
+		else:
+			action = 1
+
+		return action
+	def runEpisode(self, render=False):
+		# initialize obs
+		prevObs = self.env.reset()
+		done = False
+		totalReward = 0.0
+
+		# set new random weights for
+
+		while not done:
+			if render:
+				self.env.render()
+			action = self.chooseAction(prevObs)					# choose an action
+			obs, reward, done, info = self.env.step(action)		# observe the result
+
+			prevObs = obs
+			totalReward += reward
+
+		return totalReward
+	def learn(self, episodes, render=False):
+		episodesPlot = range(episodes)
+
+		gamma = 0.1
+		prevWeights = self.weights.copy()
+		bestReward = float('-inf')
+
+		for episode in range(episodes):
+			# randomly explore nearby weights
+			self.weights = self.weights + (np.random.rand(self.env.observation_space.n + 1) * 2 - 1) * gamma
+
+			reward = self.runEpisode(render)
+			if reward > bestReward:
+				bestReward = reward
+			else:
+				self.weights = prevWeights
+
+			self.episodes.append(episode)
+			self.rewards.append(reward)
+			self.learnedWeights.append(self.weights.copy())
+
+			print("Episode", episode, "reward", reward)
+
+			# if np.array_equal(self.weights, prevWeights):
+			# 	print ("No change episode", episode)
+			# 	print("self.weights", self.weights)
+			# 	# exit()
+			prevWeights = self.weights.copy()
+
+
+		print("Learned Weights:", self.weights)
+
+	def plot(self):
+		plotDim = [1,1]
+
+		def epPlot(yVals):
+			plt.plot(self.episodes, yVals)
+
+		epPlot(self.rewards)
+
+		plt.show(block=False)
+		input("Press Enter to Finish")
+		plt.close()
+
+
 
 class learningAgent:
 
-	def __init__(self, envName, randomAgent=1):
+	def __init__(self, envName):
 
 		random.seed(10)
 
-
-		self.randomAgent = randomAgent
 		self.env = gym.make(envName)
 		self.legalActions = [0, 1]
 		self.env.observation_space.n = len(self.env.observation_space.low)
 
 		# for the Approximate Q Learning:
-		self.weights = np.random.rand(self.env.action_space.n, self.env.observation_space.n + 1) - 1 # need to have a constant
+		self.weights = np.random.rand(self.env.action_space.n, self.env.observation_space.n + 1) * 2 - 1 # need to have a constant
 		self.discount = 0.9
 		self.alpha = 0.9		# learning rate
 		self.epsilon = 1		# exploration rate
@@ -31,6 +116,8 @@ class learningAgent:
 		self.rewards = []
 		self.epsilons = []
 		self.learnedweights = []
+
+
 
 		print ("Init complete, weights initialized to\n", self.weights)
 
@@ -59,7 +146,7 @@ class learningAgent:
 	def chooseAction(self, state):
 
 		# proceed randomly at the exploration rate
-		if random.random() < self.epsilon or self.randomAgent:
+		if random.random() < self.epsilon:
 			action = self.env.action_space.sample()
 			# print("action chosen randomly")
 		# otherwise choose the best action according to the q values
@@ -187,9 +274,9 @@ class learningAgent:
 		def epPlot(yVals):
 			plt.plot(self.episodes, yVals)
 
-		plt.subplot(plotDim[0], plotDim[1], 1)
-		epPlot(self.epsilons)
-		plt.title("Epsilon")
+		# plt.subplot(plotDim[0], plotDim[1], 1)
+		# epPlot(self.epsilons)
+		# plt.title("Epsilon")
 
 		plt.subplot(plotDim[0], plotDim[1],2)
 		epPlot(self.rewards)
@@ -221,8 +308,6 @@ class learningAgent:
 		plt.close()
 
 
-args = sys.argv
-isRandomAgent = 0
-agent = learningAgent("CartPole-v0", isRandomAgent)
+agent = hillClimbAgent("CartPole-v0")
 agent.learn(1000, 0)
 agent.plot()
