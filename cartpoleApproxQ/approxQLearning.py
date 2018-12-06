@@ -8,128 +8,21 @@ import matplotlib.pyplot as plt
 import copy
 
 """================================================================================
-Hill Climbing Agent
-   ================================================================================"""
-
-class hillClimbAgent:
-
-	def __init__(self, envName):
-		self.env = gym.make(envName)
-		self.legalActions = [0,1]
-		self.env.observation_space.n = len(self.env.observation_space.low)
-
-		self.weights = np.random.rand(self.env.observation_space.n + 1) * 2 - 1
-		self.gamma = 0.9
-
-		self.gammas = []
-		self.episodes = []
-		self.rewards = []
-		self.epsilons = []
-		self.learnedWeights = []
-		self.bestRewards = []
-
-		print ("Init complete, weights initialized to\n", self.weights)
-
-	def chooseAction(self, state):
-		value = np.dot(np.append(state, 1), self.weights)
-		if value < 0:
-			action = 0
-		else:
-			action = 1
-
-		return action
-	def runEpisode(self, render=False):
-		# initialize obs
-		prevObs = self.env.reset()
-		done = False
-		totalReward = 0.0
-
-		# set new random weights for
-
-		while not done:
-			if render:
-				self.env.render()
-			action = self.chooseAction(prevObs)					# choose an action
-			obs, reward, done, info = self.env.step(action)		# observe the result
-
-			prevObs = obs
-			totalReward += reward
-
-		return totalReward
-	def learn(self, episodes, render=False):
-		episodesPlot = range(episodes)
-
-		prevWeights = self.weights.copy()
-		bestReward = float('-inf')
-
-		for episode in range(episodes):
-			# randomly explore nearby weights
-			self.weights = self.weights + (np.random.rand(self.env.observation_space.n + 1) * 2 - 1) * self.gamma
-
-			reward = self.runEpisode(render)
-			if reward > bestReward:
-				bestReward = reward
-			else:
-				self.weights = prevWeights
-
-			self.episodes.append(episode)
-			self.rewards.append(reward)
-			self.learnedWeights.append(self.weights.copy())
-			self.bestRewards.append(bestReward)
-
-			print("Episode", episode, "reward", reward)
-
-			# if np.array_equal(self.weights, prevWeights):
-			# 	print ("No change episode", episode)
-			# 	print("self.weights", self.weights)
-			# 	# exit()
-			prevWeights = self.weights.copy()
-
-			self.gammas.append(self.gamma)
-			self.gamma *= 0.9
-
-
-		print("Learned Weights:", self.weights)
-
-	def plot(self):
-		plotDim = [3,1]
-
-		def epPlot(yVals):
-			plt.plot(self.episodes, yVals)
-
-		plt.subplot(plotDim[0], plotDim[1],1)
-		epPlot(self.rewards)
-		plt.title("Rewards")
-
-		learnedWeights = np.array(self.learnedWeights.copy())
-		print (learnedWeights)
-
-		plt.subplot(plotDim[0], plotDim[1],2)
-		for i in range(learnedWeights.shape[1]):
-			epPlot(learnedWeights[:,i])
-		plt.title("Weights")
-
-		plt.subplot(plotDim[0], plotDim[1], 3)
-		epPlot(self.bestRewards)
-		plt.title("Running Best Reward")
-
-		plt.show(block=False)
-		input("Press Enter to Finish")
-		plt.close()
-
-"""================================================================================
 Approximate Q Learning Agent
    ================================================================================"""
 
 class learningAgent:
 
-	def __init__(self, envName):
+	def __init__(self, envName, maxEpisodes):
 
 		random.seed(10)
 
 		self.env = gym.make(envName)
+		self.env._max_episode_steps = maxEpisodes
+
 		self.legalActions = [0, 1]
 		self.env.observation_space.n = len(self.env.observation_space.low)
+
 
 		# for the Approximate Q Learning:
 		self.weights = np.random.rand(self.env.action_space.n, self.env.observation_space.n + 1) * 2 - 1 # need to have a constant
@@ -138,7 +31,7 @@ class learningAgent:
 		self.epsilon = 1		# exploration rate
 
 		# keep track of metadata for plotting
-		self.episodes = []
+		self.trials = []
 		self.rewards = []
 		self.epsilons = []
 		self.learnedweights = []
@@ -265,29 +158,23 @@ class learningAgent:
 		return totalReward
 
 
-	def learn(self, episodes, render=False):
-		episodesPlot = range(episodes)
+	def learn(self, trials, episodesPerTrial, render=False):
 		epsilonPlot = []
 
 		prevWeights = self.weights.copy()
 
-		for episode in range(episodes):
+		for trial in range(trials):
 			epsilonPlot.append(self.epsilon)
 			reward = self.runEpisode(render)
 
-			self.episodes.append(episode)
+			self.trials.append(trial)
 			self.rewards.append(reward)
 			self.epsilons.append(self.epsilon)
 			self.learnedweights.append(self.weights.copy())
 
 			self.epsilon *= 0.995
 
-			print("Episode", episode, "reward", reward)
-
-			if np.array_equal(self.weights, prevWeights):
-				print ("No change episode", episode)
-				print("self.weights", self.weights)
-				# exit()
+			print("trial", trial, "reward", reward)
 			prevWeights = self.weights.copy()
 
 
@@ -298,7 +185,7 @@ class learningAgent:
 		plotDim = [3,1]
 
 		def epPlot(yVals):
-			plt.plot(self.episodes, yVals)
+			plt.plot(self.trials, yVals)
 
 		# plt.subplot(plotDim[0], plotDim[1], 1)
 		# epPlot(self.epsilons)
@@ -334,6 +221,25 @@ class learningAgent:
 		plt.close()
 
 
-agent = hillClimbAgent("CartPole-v0")
+agent = learningAgent("CartPole-v0", 500)
 agent.learn(1000, 0)
 agent.plot()
+agent.test(0)
+
+"""
+	Some issues with hill climbing:
+	- 	The best reward possible is 200, so if a set of weights randomly and occasionaly produces
+		a 200 time step episode, the weights will never improve if this controller has a lower
+		success rate than a better one.  Solutions include:
+			- 	increasing the max_episode steps:
+				env.tags['wrapper_config.TimeLimit.max_episode_steps'] = desiredSteps
+			-	try each set of weights over multiple episodes and improve based on the average
+
+	- 	This seems to be a version of First-choice hill climbing though the random successor
+		generation is limited in distance by the self.gamma factor
+
+	-	The hill climbing does tend to get stuck often, it would be good to measure this by
+		running the learn function multiple times (basically random restarts) and see what
+		percentage of the time a good solution is found.
+			- Might also try stochastic hill climbing
+"""
