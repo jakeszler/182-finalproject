@@ -33,7 +33,7 @@ class hillClimbAgent:
 		self.learnedWeights = []
 		self.bestRewards = []
 
-		print ("Init complete, weights initialized to\n", self.weights)
+		# print ("Init complete, weights initialized to\n", self.weights)
 
 	def chooseAction(self, state):
 		value = np.dot(np.append(state, 1), self.weights)
@@ -77,8 +77,6 @@ class hillClimbAgent:
 		# 	filterOutput = np.dot(rewards, coeffs)
 
 		# 	return filterOutput
-
-
 		trialsPlot = range(trials)
 
 		prevWeights = self.weights.copy()
@@ -108,7 +106,7 @@ class hillClimbAgent:
 			self.learnedWeights.append(self.weights.copy())
 			self.bestRewards.append(bestReward)
 
-			print("Trial", trial, "reward", trialReward)
+			# print("Trial", trial, "reward", trialReward)
 
 			prevWeights = self.weights.copy()
 
@@ -116,7 +114,7 @@ class hillClimbAgent:
 			self.gamma *= 0.995
 
 
-		print("Learned Weights:", self.weights)
+		# print("Learned Weights:", self.weights)
 
 	def plot(self):
 		plotDim = [4,1]
@@ -170,12 +168,51 @@ class hillClimbAgent:
 
 		avgScore = np.mean(testScores)
 		print("Average Score = ", avgScore)
+		return avgScore
+
+	def getRewards(self):
+		return self.trials, self.rewards		
+
+""" SINGLE TEST """
+# agent = hillClimbAgent("CartPole-v0", 200)
+# agent.learn(1000, 5, 0)
+
+# agent.plot()
+# agent.test(0)
 
 
+""" SINGLE TRIAL FILTER SWEEP """
+# numTrials = 100
+# filters = [2, 3, 4, 6, 8]
+
+# param_Successes = []
+# for i in range(len(filters)):
+# 	testScores = []
+# 	for j in range(numTrials):
+# 		agent = hillClimbAgent("CartPole-v0", 200)
+# 		agent.learn(1000, filters[i], 0)
+# 		testScores.append(agent.test(0))
+# 		print("Parameter", i, "Trial", j)
+# 	testScores = np.array(testScores)
+# 	testSuccesses = np.where(testScores > 195)
+# 	numSuccess = np.size(testSuccesses)
+# 	param_Successes.append(numSuccess)
+
+# print (param_Successes)
+# plt.plot(filters, param_Successes)
+# plt.xlabel("Filter Size")
+# plt.ylabel("Number of Success Out of 100 Trials")
+# plt.title("Effect of Filter Size on Learning Success")
+# plt.show()
+
+""" SHORT EPISODE TEST """
 agent = hillClimbAgent("CartPole-v0", 100)
 agent.learn(1000, 3, 0)
-agent.plot()
 agent.test(0)
+
+agent.plot()
+
+
 
 """
 	Some issues with hill climbing:

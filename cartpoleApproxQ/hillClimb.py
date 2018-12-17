@@ -13,7 +13,7 @@ Hill Climbing Agent
 
 class hillClimbAgent:
 
-	def __init__(self, envName, maxEpisodes=200):
+	def __init__(self, envName, gamma0, gamma_l, maxEpisodes=200):
 
 		self.env = gym.make(envName)
 		self.env._max_episode_steps = maxEpisodes
@@ -24,7 +24,8 @@ class hillClimbAgent:
 		
 
 		self.weights = np.random.rand(self.env.observation_space.n + 1) * 2 - 1
-		self.gamma = 1
+		self.gamma = gamma0
+		self.gamma_decay = gamma_l
 
 		self.gammas = []
 		self.episodes = []
@@ -33,7 +34,7 @@ class hillClimbAgent:
 		self.learnedWeights = []
 		self.bestRewards = []
 
-		print ("Init complete, weights initialized to\n", self.weights)
+		# print ("Init complete, weights initialized to\n", self.weights)
 
 	def chooseAction(self, state):
 		value = np.dot(np.append(state, 1), self.weights)
@@ -85,7 +86,7 @@ class hillClimbAgent:
 			self.learnedWeights.append(self.weights.copy())
 			self.bestRewards.append(bestReward)
 
-			print("Episode", episode, "reward", reward)
+			# print("Episode", episode, "reward", reward)
 
 			# if np.array_equal(self.weights, prevWeights):
 			# 	print ("No change episode", episode)
@@ -94,10 +95,10 @@ class hillClimbAgent:
 			prevWeights = self.weights.copy()
 
 			self.gammas.append(copy.copy(self.gamma))
-			self.gamma *= 0.995
+			self.gamma *= self.gamma_decay
 
 
-		print("Learned Weights:", self.weights)
+		# print("Learned Weights:", self.weights)
 
 	def plot(self):
 		plotDim = [4,1]
@@ -152,11 +153,10 @@ class hillClimbAgent:
 		avgScore = np.mean(testScores)
 		print("Average Score = ", avgScore)
 
+		return avgScore
 
-agent = hillClimbAgent("CartPole-v0", 1000)
-agent.learn(1000, 0)
-agent.plot()
-agent.test(0)
+
+
 
 """
 	Some issues with hill climbing:
@@ -181,3 +181,73 @@ agent.test(0)
 	- Test Score vs averaging filter on standard 200 max score (can sweep filter width)
 
 """
+""" SINGLE TEST """
+# agent = hillClimbAgent("CartPole-v0", 1000)
+# agent.learn(1000, 0)
+# agent.plot()
+# agent.test(0)
+
+""" 100 TRIAL TEST, SET PARAMETERS """
+
+# testScores = []
+# for i in range(100):
+# 	agent = hillClimbAgent("CartPole-v0", 200)
+# 	agent.learn(1000, 0)
+# 	testScore = agent.test(0)
+# 	testScores.append(testScore)
+# 	print ("Episode ", i, "score ", testScore)
+
+# print("Scores:", testScores)
+# plt.hist(testScores, bins='auto')
+# plt.title("Test Scores of 10 Hill Climb Instantiations")
+# plt.xlabel("Number of Occurrences")
+# plt.ylabel("Average Score over 100 Trials")
+# plt.show()
+
+""" Parameter Sweep """
+# numTrials = 100
+# gammaDs = [0.999, 0.9975, 0.995, 0.99, 0.975, 0.95, 0.9]
+# param_Successes = []
+# for i in range(len(gammaDs)):
+# 	testScores = []
+# 	for j in range(numTrials):
+# 		print("Parameter ", i, " Trial ", j)
+# 		agent = hillClimbAgent("CartPole-v0", 1, gammaDs[i], 200)
+# 		agent.learn(1000, 0)
+# 		testScore = agent.test(0)
+# 		testScores.append(testScore)
+# 	testScores = np.array(testScores)
+# 	testSuccesses = np.where(testScores > 195)
+# 	numSuccess = np.size(testSuccesses)
+# 	param_Successes.append(numSuccess)
+
+# print (param_Successes)
+# plt.plot(gammaDs, param_Successes)
+# plt.xlabel("Parameters")
+# plt.ylabel("Number of Success Out of 100 Trials")
+# plt.title("Effect of Exploration Parameter on Learning Success")
+# plt.show()
+
+""" Sweep Max Episode Length """
+# numTrials = 100
+# maxEpsiodeLens = [100, 200, 300, 500, 750, 1000]
+
+# param_Successes = []
+# for i in range(len(maxEpsiodeLens)):
+# 	testScores = []
+# 	for j in range(numTrials):
+# 		agent = hillClimbAgent("CartPole-v0", 1, 0.995, maxEpsiodeLens[i])
+# 		agent.learn(1000, 0)
+# 		testScores.append(agent.test(0))
+# 		print("Parameter", i, "Trial", j)
+# 	testScores = np.array(testScores)
+# 	testSuccesses = np.where(testScores > 195)
+# 	numSuccess = np.size(testSuccesses)
+# 	param_Successes.append(numSuccess)
+
+# print (param_Successes)
+# plt.plot(maxEpsiodeLens, param_Successes)
+# plt.xlabel("Max Episode Length")
+# plt.ylabel("Number of Success Out of 100 Trials")
+# plt.title("Effect of Maximum Episode Length on Learning Success")
+# plt.show()

@@ -13,24 +13,22 @@ Hill Climbing Agent
 
 class hillClimbAgent:
 
-	def __init__(self, envName, maxEpisodes=200):
-		self.maxReward = maxEpisodes
+	def __init__(self, envName, gamma0=1, gamma_l=0.995, maxEpisodes=200):
 
 		self.env = gym.make(envName)
 		self.env._max_episode_steps = maxEpisodes
 
 
-		self.legalActions = [0,1]
+		self.legalActions = [0,1,2,3]
 		self.env.observation_space.n = len(self.env.observation_space.low)
 		
 
 		self.weights = np.random.rand(self.env.observation_space.n + 1) * 2 - 1
-		self.gamma = 1
-		self.T = 0.1
+		self.gamma = gamma0
+		self.gamma_decay = gamma_l
 
-		self.temps = []
 		self.gammas = []
-		self.trials = []
+		self.episodes = []
 		self.rewards = []
 		self.epsilons = []
 		self.learnedWeights = []
@@ -40,12 +38,19 @@ class hillClimbAgent:
 
 	def chooseAction(self, state):
 		value = np.dot(np.append(state, 1), self.weights)
-		if value < 0:
-			action = 0
+
+		# Bin the value into (:,-1), [-1, 0), [0, 1), [0, :)
+		if value < -1:
+			action = self.legalActions[0]
+		elif value < 0:
+			action = self.legalActions[1]
+		elif value < 1:
+			action = self.legalActions[2]
 		else:
-			action = 1
+			action = self.legalActions[3]
 
 		return action
+
 	def runEpisode(self, render=False):
 		# initialize obs
 		prevObs = self.env.reset()
@@ -66,55 +71,38 @@ class hillClimbAgent:
 		return totalReward
 
 
-	def learn(self, trials, episodesPerTrial, render=False):
-
-		trialsPlot = range(trials)
+	def learn(self, episodes, render=False):
+		episodesPlot = range(episodes)
 
 		prevWeights = self.weights.copy()
 		bestReward = float('-inf')
-		prevReward = float('-inf')
 
-		for trial in range(trials):
+		for episode in range(episodes):
 			# randomly explore nearby weights
 			self.weights = self.weights + (np.random.rand(self.env.observation_space.n + 1) * 2 - 1) * self.gamma
 
-			# conduct several trials at the same weight
-			trialRewards = []
-			for episode in range(episodesPerTrial):
-				reward = self.runEpisode(render)
-				trialRewards.append(reward)
+			reward = self.runEpisode(render)
+			self.rewards.append(reward)
 
-			# average the reward for that weight
-			trialReward = sum(trialRewards) / float(len(trialRewards))
-
-			# Now do the updating:
-			if trialReward > bestReward:
-				bestReward = trialReward
-
-			# If better, always move
-			if trialReward > prevReward:
-				prevReward = trialReward
-			# if not better, than with probability proportional to T and the error still accept
-			elif random.random() < self.T:
-				prevReward = trialReward
-			# if not accepting, revert to the previous weights
+			if reward > bestReward:
+				bestReward = reward
 			else:
 				self.weights = prevWeights
-			
-			self.rewards.append(trialReward)
-			self.trials.append(trial)
+
+			self.episodes.append(episode)
 			self.learnedWeights.append(self.weights.copy())
 			self.bestRewards.append(bestReward)
 
-			# print("Trial", trial, "reward", trialReward)
+			# print("Episode", episode, "reward", reward)
 
+			# if np.array_equal(self.weights, prevWeights):
+			# 	print ("No change episode", episode)
+			# 	print("self.weights", self.weights)
+			# 	# exit()
 			prevWeights = self.weights.copy()
 
 			self.gammas.append(copy.copy(self.gamma))
-			self.gamma *= 0.995
-
-			self.temps.append(copy.copy(self.T))
-			self.T *= 0.99
+			self.gamma *= self.gamma_decay
 
 
 		# print("Learned Weights:", self.weights)
@@ -123,13 +111,12 @@ class hillClimbAgent:
 		plotDim = [4,1]
 
 		def epPlot(yVals):
-			plt.plot(self.trials, yVals)
+			plt.plot(self.episodes, yVals)
 
 		plt.tight_layout()
 
 		plt.subplot(plotDim[0], plotDim[1],1)
 		epPlot(self.gammas)
-		epPlot(self.temps)
 		plt.title("Exploration Over Time")
 
 		plt.subplot(plotDim[0], plotDim[1],2)
@@ -171,36 +158,13 @@ class hillClimbAgent:
 			testScores.append(reward)
 
 		avgScore = np.mean(testScores)
-		# print("Average Score = ", avgScore)
+		print("Average Score = ", avgScore)
+
 		return avgScore
 
-""" SINGLE TEST """
-# agent = hillClimbAgent("CartPole-v0", 200)
-# agent.learn(1000, 3, 0)
-# agent.plot()
-# agent.test(0)
 
-""" 100 TRIAL TEST, SET PARAMETERS """
 
-testScores = []
-for i in range(100):
-	agent = hillClimbAgent("CartPole-v0", 200)
-	agent.learn(1000, 1, 0)
-	testScore = agent.test(0)
-	testScores.append(testScore)
-	print ("Episode ", i, "score ", testScore)
 
-print("Scores:", testScores)
-plt.hist(testScores, bins='auto')
-plt.title("Test Scores of 100 Simulated Annealing Trials")
-plt.xlabel("Number of Occurrences")
-plt.ylabel("Average Score over 100 Trials")
-plt.show()
-
-testScores = np.array(testScores)
-testSuccesses = np.where(testScores > 195)
-numSuccess = np.size(testSuccesses)
-print("successful = ", numSuccess)
 """
 	Some issues with hill climbing:
 	- 	The best reward possible is 200, so if a set of weights randomly and occasionaly produces
@@ -219,19 +183,78 @@ print("successful = ", numSuccess)
 			- Might also try stochastic hill climbing
 
 
-	Note on a metrics:
-	-	It should not just be the actual state that the agent learns from.  The cost function
-		should be a function of how far the cartpole is from [0, 0, 0, 0], so for the approx
-		Q learning maybe I should attempt to minimize this difference/error vector.
-
 	Some Plots to make:
-	- 	Test Score vs Max Training Score (need to take averages)
-	- 	Test Score vs averaging filter on standard 200 max score (can sweep filter width)
-	- 	Can also sweep the max reward with the averaging filter.  You can set the maximum score
-		during learning to be just 100, and the test score can still average almost 200
-		- 	Having a very large filter (10) but with very short episode length (50) doesn't work.
-			There seems to be some threshold episode length above which the controller can balance
-			the pendulum for a long time, but below which the controller can't learn to be stable
-			enough
+	- Test Score vs Max Training Score (need to take averages)
+	- Test Score vs averaging filter on standard 200 max score (can sweep filter width)
 
 """
+""" SINGLE TEST """
+# agent = hillClimbAgent("CartPole-v0", 1000)
+# agent.learn(1000, 0)
+# agent.plot()
+# agent.test(0)
+
+""" 100 TRIAL TEST, SET PARAMETERS """
+
+testScores = []
+for i in range(100):
+	agent = hillClimbAgent("LunarLander-v2")
+	agent.learn(1000, 0)
+	testScore = agent.test(0)
+	testScores.append(testScore)
+	print ("Episode ", i, "score ", testScore)
+
+print("Scores:", testScores)
+plt.hist(testScores, bins='auto')
+plt.title("Test Scores of 100 Hill Climb Instantiations")
+plt.xlabel("Number of Occurrences")
+plt.ylabel("Average Score over 100 Trials")
+plt.show()
+
+""" Parameter Sweep """
+# numTrials = 100
+# gammaDs = [0.999, 0.9975, 0.995, 0.99, 0.975, 0.95, 0.9]
+# param_Successes = []
+# for i in range(len(gammaDs)):
+# 	testScores = []
+# 	for j in range(numTrials):
+# 		print("Parameter ", i, " Trial ", j)
+# 		agent = hillClimbAgent("CartPole-v0", 1, gammaDs[i], 200)
+# 		agent.learn(1000, 0)
+# 		testScore = agent.test(0)
+# 		testScores.append(testScore)
+# 	testScores = np.array(testScores)
+# 	testSuccesses = np.where(testScores > 195)
+# 	numSuccess = np.size(testSuccesses)
+# 	param_Successes.append(numSuccess)
+
+# print (param_Successes)
+# plt.plot(gammaDs, param_Successes)
+# plt.xlabel("Parameters")
+# plt.ylabel("Number of Success Out of 100 Trials")
+# plt.title("Effect of Exploration Parameter on Learning Success")
+# plt.show()
+
+""" Sweep Max Episode Length """
+# numTrials = 100
+# maxEpsiodeLens = [100, 200, 300, 500, 750, 1000]
+
+# param_Successes = []
+# for i in range(len(maxEpsiodeLens)):
+# 	testScores = []
+# 	for j in range(numTrials):
+# 		agent = hillClimbAgent("CartPole-v0", 1, 0.995, maxEpsiodeLens[i])
+# 		agent.learn(1000, 0)
+# 		testScores.append(agent.test(0))
+# 		print("Parameter", i, "Trial", j)
+# 	testScores = np.array(testScores)
+# 	testSuccesses = np.where(testScores > 195)
+# 	numSuccess = np.size(testSuccesses)
+# 	param_Successes.append(numSuccess)
+
+# print (param_Successes)
+# plt.plot(maxEpsiodeLens, param_Successes)
+# plt.xlabel("Max Episode Length")
+# plt.ylabel("Number of Success Out of 100 Trials")
+# plt.title("Effect of Maximum Episode Length on Learning Success")
+# plt.show()
