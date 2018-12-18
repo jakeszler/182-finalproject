@@ -20,37 +20,40 @@ eps_list = []
 def discretize_state(state):
     map_to_bucket_index = []
     for counter, feature in enumerate(state):
-        #bucket_index = None
         if feature < state_bounds[counter][0]:
              bucket_index = 0
         elif feature > state_bounds[counter][1]:
             bucket_index = num_discretized_sections[counter] - 1
         else:
-            offset = (num_discretized_sections[counter] - 1) * state_bounds[counter][0] / (state_bounds[counter][1] - state_bounds[counter][0])
-            scale_factor = (num_discretized_sections[counter] - 1) / (state_bounds[counter][1] - state_bounds[counter][0])
-            bucket_index = int(round(scale_factor * state[counter] - offset))
+            bucket_index = assignIntermediateIndex(counter, state)
         map_to_bucket_index.append(bucket_index)
     return tuple(map_to_bucket_index)
 
-# (x, x', theta, theta')
+def assignIntermediateIndex(counter, state):
+    offset = (num_discretized_sections[counter] - 1) * state_bounds[counter][0] / (state_bounds[counter][1] - state_bounds[counter][0])
+    scale_factor = (num_discretized_sections[counter] - 1) / (state_bounds[counter][1] - state_bounds[counter][0])
+    return int(round(scale_factor * state[counter] - offset))
+
+
 for num_buckets in range(10):
     time_alive_list = []
     num_b = num_buckets + 1
     num_discretized_sections = (1, 1, num_b, num_b)
 
-    # (left, right)
+
     num_actions = env.action_space.n
 
-    state_bounds = list(zip(env.observation_space.low, env.observation_space.high))  # [(l,u), (l,u), (l,u), (l,u)]
-    state_bounds[1] = [-0.5, 0.5]  # bound criteria
-    state_bounds[3] = [-np.radians(50), np.radians(50)]  # bound criteria
+    state_bounds = list(zip(env.observation_space.low, env.observation_space.high))
 
-    q_table = np.zeros(num_discretized_sections + (num_actions,))  # (1,1,6,3,2)
+    state_bounds[1] = [-0.5, 0.5]
+    state_bounds[3] = [-np.radians(50), np.radians(50)]
+
+    q_table = np.zeros(num_discretized_sections + (num_actions,))
 
 
 
     for trial in range(num_trials):
-        obs = env.reset()  # (4,)
+        obs = env.reset()
 
         prev_state = discretize_state(obs)
 
@@ -94,9 +97,6 @@ for num_buckets in range(10):
             #print "q after ", q_table[prev_state + (action,)]
             prev_state = next_state
             if done:
-                # if failed
-                print('trial:{}/{} finished at timestep:{}'.format(
-                    trial, num_trials, t))
                 time_alive_list.append(t)
                 # alpha_list.append(alpha)
                 # eps_list.append(epsilon)
