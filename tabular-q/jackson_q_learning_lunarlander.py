@@ -32,10 +32,10 @@ def discretize_state(state):
     return tuple(map_to_bucket_index)
 
 def assignIntermediateIndex(counter, state):
-    a = (num_discretized_sections[counter] - 1) * state_bounds[counter][0]
-    b = (state_bounds[counter][1] - state_bounds[counter][0])
+    a = state_bounds[counter][0] * (num_discretized_sections[counter] - 1)
+    b = state_bounds[counter][1] - state_bounds[counter][0]
     d =  a / b
-    scale_factor = (num_discretized_sections[counter] - 1) / (state_bounds[counter][1] - state_bounds[counter][0])
+    scale_factor = (num_discretized_sections[counter] - 1)/(state_bounds[counter][1] - state_bounds[counter][0])
     return int(round(scale_factor * state[counter] - d))
 
 
@@ -50,7 +50,7 @@ for num_buckets in range(10):
     # (left, right)
     num_actions = system.action_space.n
 
-    state_bounds = list(zip(system.observation_space.low, system.observation_space.high))  # [(l,u), (l,u), (l,u), (l,u)]
+    state_bounds = list(zip(system.observation_space.low, system.observation_space.high))
 
     #TEST TO FIND BOUNDS FOR STATES
     # for i in range(len(state_bounds)):
@@ -60,14 +60,14 @@ for num_buckets in range(10):
     # arr = []
     #
     # for trial in range(1000):
-    #     obs = system.reset()
+    #     observed_state = system.reset()
     #     done = False
     #     while not done:
-    #         arr.append(obs)
-    #         #print obs
+    #         arr.append(observed_state)
+    #         #print observed_state
     #         #action = random.randint(0, num_actions - 1)
     #         action = num_trials % num_actions
-    #         obs, reward, done, _ = system.step(action)
+    #         observed_state, reward, done, _ = system.step(action)
 
     # arr = np.array(arr)
     # max_arr = np.max(arr,axis=0)
@@ -93,9 +93,9 @@ for num_buckets in range(10):
 
     for trial in range(num_trials):
         score = 0
-        obs = system.reset()  # (4,)
+        observed_state = system.reset()  # (4,)
 
-        prev_state = discretize_state(obs)
+        prev_state = discretize_state(observed_state)
 
         #set epsilon set alpha#####################################################
         zero_point = 5000
@@ -121,15 +121,15 @@ for num_buckets in range(10):
 
 
             #print("taking action {}".format(action))
-            # print "state ", obs
+            # print "state ", observed_state
             # print "discretized state ", prev_state
             # print "q values", q_table[prev_state]
             # print ""
             # print ""
-            obs, reward, done, _ = system.step(action)
+            observed_state, reward, done, _ = system.step(action)
             score += reward
             #print "reward ", reward
-            next_state = discretize_state(obs)
+            next_state = discretize_state(observed_state)
             # q_table[prev_state + (action,)] += reward + gamma * np.amax(q_table[next_state])
             old_value = q_table[prev_state + (action,)]
             #print "q before ", q_table[prev_state + (action,)]
@@ -138,7 +138,7 @@ for num_buckets in range(10):
             prev_state = next_state
             if done:
                 # if failed
-                print trial, "/", num_trials
+                print trial, "/", num_trials, " score = ", score
                 score_list.append(score)
                 # alpha_list.append(alpha)
                 # eps_list.append(epsilon)
