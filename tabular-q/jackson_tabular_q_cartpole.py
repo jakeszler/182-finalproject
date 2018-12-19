@@ -1,11 +1,12 @@
 #code by Jackson Wagner
 import numpy as np
 import pdb
-import math
 import random
 import matplotlib.pyplot as plt
 import gym
-env = gym.make('CartPole-v0')
+import math
+
+system = gym.make('CartPole-v0')
 num_trials = 400
 timestep_max = 200
 gamma = 0.9
@@ -17,47 +18,54 @@ time_alive_lists = []
 alpha_list = []
 eps_list = []
 
+#method to convert continuous states into discrete buckets
 def discretize_state(state):
     map_to_bucket_index = []
     for counter, feature in enumerate(state):
-        if feature < state_bounds[counter][0]:
-             bucket_index = 0
-        elif feature > state_bounds[counter][1]:
+        if feature > state_bounds[counter][1]:
             bucket_index = num_discretized_sections[counter] - 1
+        elif feature < state_bounds[counter][0]:
+                 bucket_index = 0
         else:
             bucket_index = assignIntermediateIndex(counter, state)
         map_to_bucket_index.append(bucket_index)
     return tuple(map_to_bucket_index)
 
 def assignIntermediateIndex(counter, state):
-    offset = (num_discretized_sections[counter] - 1) * state_bounds[counter][0] / (state_bounds[counter][1] - state_bounds[counter][0])
+    a = (num_discretized_sections[counter] - 1) * state_bounds[counter][0]
+    b = (state_bounds[counter][1] - state_bounds[counter][0])
+    d =  a / b
     scale_factor = (num_discretized_sections[counter] - 1) / (state_bounds[counter][1] - state_bounds[counter][0])
-    return int(round(scale_factor * state[counter] - offset))
+    return int(round(scale_factor * state[counter] - d))
 
 
 for num_buckets in range(10):
     time_alive_list = []
     num_b = num_buckets + 1
+    print "now testing num_buckets = ", num_b
     num_discretized_sections = (1, 1, num_b, num_b)
 
 
-    num_actions = env.action_space.n
+    num_actions = system.action_space.n
 
-    state_bounds = list(zip(env.observation_space.low, env.observation_space.high))
+    state_bounds = list(zip(system.observation_space.low, system.observation_space.high))
 
-    state_bounds[1] = [-0.5, 0.5]
+    #testing done to determine these bounds
     state_bounds[3] = [-np.radians(50), np.radians(50)]
+    state_bounds[1] = [-0.5, 0.5]
 
+
+    #make the q table
     q_table = np.zeros(num_discretized_sections + (num_actions,))
 
 
 
     for trial in range(num_trials):
-        obs = env.reset()
+        observed_state = system.reset()
 
-        prev_state = discretize_state(obs)
+        prev_state = discretize_state(observed_state)
 
-        #set epsilon set alpha#####################################################
+        #set epsilon set alpha##################################################### change this code for experiments
         zero_point = 200
         if trial >= zero_point:
             epsilon = 0
@@ -72,7 +80,7 @@ for num_buckets in range(10):
 
 
         for t in range(timestep_max):
-            # env.render()
+            # system.render()
             random_num = random.random()
             if random_num > epsilon:
                 action = np.argmax(q_table[prev_state])
@@ -81,15 +89,15 @@ for num_buckets in range(10):
 
 
             #print("taking action {}".format(action))
-            # print "state ", obs
+            # print "state ", observed_state
             # print "discretized state ", prev_state
             # print "q values", q_table[prev_state]
             # print ""
             # print ""
-            obs, reward, done, _ = env.step(action)
-            score += reward
+            observed_state, reward, done, _ = system.step(action)
+
             #print "reward ", reward
-            next_state = discretize_state(obs)
+            next_state = discretize_state(observed_state)
             # q_table[prev_state + (action,)] += reward + gamma * np.amax(q_table[next_state])
             old_value = q_table[prev_state + (action,)]
             #print "q before ", q_table[prev_state + (action,)]
@@ -98,6 +106,7 @@ for num_buckets in range(10):
             prev_state = next_state
             if done:
                 time_alive_list.append(t)
+                print trial, "/", num_trials
                 # alpha_list.append(alpha)
                 # eps_list.append(epsilon)
                 break
