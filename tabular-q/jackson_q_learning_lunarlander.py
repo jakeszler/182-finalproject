@@ -1,11 +1,12 @@
 #code by Jackson Wagner
 import numpy as np
-import pdb
-import math
 import random
 import matplotlib.pyplot as plt
 import gym
-env = gym.make('LunarLander-v2')
+import pdb
+import math
+
+system = gym.make('LunarLander-v2')
 num_trials = 10000
 timestep_max = 10000
 gamma = 0.9
@@ -17,35 +18,39 @@ score_lists = []
 alpha_list = []
 eps_list = []
 
+#method to convert continuous states into discrete buckets
 def discretize_state(state):
     map_to_bucket_index = []
     for counter, feature in enumerate(state):
-        if feature < state_bounds[counter][0]:
-             bucket_index = 0
-        elif feature > state_bounds[counter][1]:
+        if feature > state_bounds[counter][1]:
             bucket_index = num_discretized_sections[counter] - 1
+        elif feature < state_bounds[counter][0]:
+                 bucket_index = 0
         else:
             bucket_index = assignIntermediateIndex(counter, state)
         map_to_bucket_index.append(bucket_index)
     return tuple(map_to_bucket_index)
 
 def assignIntermediateIndex(counter, state):
-    offset = (num_discretized_sections[counter] - 1) * state_bounds[counter][0] / (state_bounds[counter][1] - state_bounds[counter][0])
+    a = (num_discretized_sections[counter] - 1) * state_bounds[counter][0]
+    b = (state_bounds[counter][1] - state_bounds[counter][0])
+    d =  a / b
     scale_factor = (num_discretized_sections[counter] - 1) / (state_bounds[counter][1] - state_bounds[counter][0])
-    return int(round(scale_factor * state[counter] - offset))
+    return int(round(scale_factor * state[counter] - d))
 
-# (x, x', theta, theta')
+
 for num_buckets in range(10):
+
     score_list = []
     num_b = num_buckets + 1
     score = 0
-
+    print "now testing num_buckets = ", num_b
     num_discretized_sections = (num_b,num_b,num_b,num_b,num_b,num_b,2,2)
 
     # (left, right)
-    num_actions = env.action_space.n
+    num_actions = system.action_space.n
 
-    state_bounds = list(zip(env.observation_space.low, env.observation_space.high))  # [(l,u), (l,u), (l,u), (l,u)]
+    state_bounds = list(zip(system.observation_space.low, system.observation_space.high))  # [(l,u), (l,u), (l,u), (l,u)]
 
     #TEST TO FIND BOUNDS FOR STATES
     # for i in range(len(state_bounds)):
@@ -55,14 +60,14 @@ for num_buckets in range(10):
     # arr = []
     #
     # for trial in range(1000):
-    #     obs = env.reset()
+    #     obs = system.reset()
     #     done = False
     #     while not done:
     #         arr.append(obs)
     #         #print obs
     #         #action = random.randint(0, num_actions - 1)
     #         action = num_trials % num_actions
-    #         obs, reward, done, _ = env.step(action)
+    #         obs, reward, done, _ = system.step(action)
 
     # arr = np.array(arr)
     # max_arr = np.max(arr,axis=0)
@@ -88,7 +93,7 @@ for num_buckets in range(10):
 
     for trial in range(num_trials):
         score = 0
-        obs = env.reset()  # (4,)
+        obs = system.reset()  # (4,)
 
         prev_state = discretize_state(obs)
 
@@ -107,7 +112,7 @@ for num_buckets in range(10):
 
 
         for t in range(timestep_max):
-            # env.render()
+            # system.render()
             random_num = random.random()
             if random_num > epsilon:
                 action = np.argmax(q_table[prev_state])
@@ -121,7 +126,7 @@ for num_buckets in range(10):
             # print "q values", q_table[prev_state]
             # print ""
             # print ""
-            obs, reward, done, _ = env.step(action)
+            obs, reward, done, _ = system.step(action)
             score += reward
             #print "reward ", reward
             next_state = discretize_state(obs)
@@ -133,13 +138,13 @@ for num_buckets in range(10):
             prev_state = next_state
             if done:
                 # if failed
-                print('trial:{}/{} finished at timestep:{}'.format(
-                    trial, num_trials, t))
+                print trial, "/", num_trials
                 score_list.append(score)
                 # alpha_list.append(alpha)
                 # eps_list.append(epsilon)
                 break
     score_lists.append(score_list)
+
 # plt.plot(score_list)
 # plt.ylabel('total_reward')
 # plt.xlabel('trial_number')
